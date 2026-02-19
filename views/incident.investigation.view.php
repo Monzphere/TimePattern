@@ -340,6 +340,37 @@ $time_patterns_section = (new CDiv([
 $sections->addItem($key_insight_section);
 $sections->addItem($time_patterns_section);
 
+if ($items && isset($event['clock'])) {
+	$event_ts = $event['clock'];
+	$from_ts = $event_ts - 21600;
+	$from_time = date('Y-m-d H:i:s', $from_ts);
+	$to_time = 'now';
+	$itemids = array_column($items, 'itemid');
+	$base_params = [
+		'from' => $from_time,
+		'to' => $to_time,
+		'type' => 0,
+		'resolve_macros' => 1,
+		'width' => 800,
+		'height' => 250,
+		'_' => time()
+	];
+	$chart_url = 'chart.php?' . http_build_query($base_params);
+	foreach ($itemids as $itemid) {
+		$chart_url .= '&itemids[]=' . urlencode($itemid);
+	}
+	$graphs_section = (new CDiv([
+		(new CTag('h3', true, _('Graphs (6h before incident)')))->addClass('mnz-incident-section-title'),
+		(new CDiv(
+			(new CTag('img', true))
+				->setAttribute('src', $chart_url)
+				->setAttribute('alt', _('Problem graph'))
+				->addClass('mnz-incident-chart-image')
+		))->addClass('mnz-incident-graph-wrapper')
+	]))->addClass('mnz-incident-section mnz-incident-section-graphs');
+	$sections->addItem($graphs_section);
+}
+
 if (($related_events && $trigger) || ($actions_data['result'] && !empty($actions_data['result']['actions']))) {
 	$allowed = [
 		'add_comments' => CWebUser::checkAccess(CRoleHelper::ACTIONS_ADD_PROBLEM_COMMENTS),
@@ -388,37 +419,6 @@ if (($related_events && $trigger) || ($actions_data['result'] && !empty($actions
 		$actions_wrap
 	]))->addClass('mnz-incident-section mnz-incident-section-timeline');
 	$sections->addItem($timeline_section);
-}
-
-if ($items && isset($event['clock'])) {
-	$event_ts = $event['clock'];
-	$from_ts = $event_ts - 21600;
-	$from_time = date('Y-m-d H:i:s', $from_ts);
-	$to_time = 'now';
-	$itemids = array_column($items, 'itemid');
-	$base_params = [
-		'from' => $from_time,
-		'to' => $to_time,
-		'type' => 0,
-		'resolve_macros' => 1,
-		'width' => 800,
-		'height' => 250,
-		'_' => time()
-	];
-	$chart_url = 'chart.php?' . http_build_query($base_params);
-	foreach ($itemids as $itemid) {
-		$chart_url .= '&itemids[]=' . urlencode($itemid);
-	}
-	$graphs_section = (new CDiv([
-		(new CTag('h3', true, _('Graphs (6h before incident)')))->addClass('mnz-incident-section-title'),
-		(new CDiv(
-			(new CTag('img', true))
-				->setAttribute('src', $chart_url)
-				->setAttribute('alt', _('Problem graph'))
-				->addClass('mnz-incident-chart-image')
-		))->addClass('mnz-incident-graph-wrapper')
-	]))->addClass('mnz-incident-section mnz-incident-section-graphs');
-	$sections->addItem($graphs_section);
 }
 
 $content->addItem($sections);
@@ -509,7 +509,11 @@ $chart_script = 'window.mnzInvestigationData = '.json_encode($chart_data).';'.
 		'for (var w=0; w<7; w++) { html += \'<div class="mnz-heatmap-row">\'; for (var h=0; h<24; h++) { var v = (wh[w]&&wh[w][h])||0; var intensity = v/maxVal; var col = intensity>0 ? (intensity>0.5 ? (intensity>0.8 ? "#c0392b" : "#e67e22") : "#27ae60") : barBg; var cls = v>0 ? " mnz-heatmap-cell-active" : ""; html += \'<div class="mnz-heatmap-cell\'+cls+\'" data-w="\'+w+\'" data-h="\'+h+\'" style="background:\'+col+\'" title="\'+(d.weekLabels[w]||"")+\' \'+(d.hourLabels[h]||h)+\': \'+v+\'">\'+v+\'</div>\'; } html += \'</div>\'; }'.
 		'html += \'</div></div>\'; el.innerHTML = html;'.
 		'jQuery("#mnz-investigation-heatmap").off("click", ".mnz-heatmap-cell-active").on("click", ".mnz-heatmap-cell-active", function() {'.
-			'var center = jQuery(this); var w = parseInt(center.data("w"),10); var h = parseInt(center.data("h"),10); var filtered = clocks.filter(function(t){ var dt=new Date(t*1000); return dt.getDay()===w && dt.getHours()===h; });'.
+			'var center = jQuery(this); var w = parseInt(center.data("w"),10); var h = parseInt(center.data("h"),10);'.
+			'if (currentFilter && currentFilter.type==="heatmap" && currentFilter.weekday===w && currentFilter.hour===h) {'.
+				'currentFilter=null; currentAgg=computeAggregates(clocks); var m=jQuery("#mnz-monthly-drilldown"); m.removeClass("mnz-drilldown-visible").empty().append(\'<div class="mnz-drilldown-hint mnz-drilldown-hint-monthly">\'+(d.hintMonth||"")+\'</div>\'); applyAndRender(); updateFilterBar(); return;'.
+			'}'.
+			'var filtered = clocks.filter(function(t){ var dt=new Date(t*1000); return dt.getDay()===w && dt.getHours()===h; });'.
 			'currentFilter = {type:"heatmap", weekday:w, hour:h}; currentAgg = computeAggregates(filtered); jQuery("#mnz-weekly-drilldown, #mnz-monthly-drilldown").removeClass("mnz-drilldown-visible"); applyAndRender(); updateFilterBar();'.
 		'});'.
 	'}'.
@@ -576,6 +580,9 @@ $chart_script = 'window.mnzInvestigationData = '.json_encode($chart_data).';'.
 			'var dd = currentAgg.monthlyDailyDetails[idx]; if (dd) renderDrilldown("mnz-monthly-drilldown", dd, dayLabs, "'. _('Daily distribution') .' - "+d.monthLabels[idx], barFill, true); setupCloseHandler("mnz-monthly-drilldown", d.hintMonth||"", "mnz-drilldown-hint-monthly");'.
 			'jQuery("#mnz-monthly-drilldown").off("click", ".mnz-drilldown-day-bar").on("click", ".mnz-drilldown-day-bar", function() {'.
 				'var day = parseInt(jQuery(this).data("day"), 10); var monthIdx = (currentFilter.type==="day" ? currentFilter.monthIdx : currentFilter.value); var mk = monthKeys[monthIdx]; if (!mk || !day) return;'.
+				'if (currentFilter && currentFilter.type==="day" && currentFilter.monthIdx===monthIdx && currentFilter.day===day) {'.
+					'currentFilter=null; currentAgg=computeAggregates(clocks); var m=jQuery("#mnz-monthly-drilldown"); m.removeClass("mnz-drilldown-visible").empty().append(\'<div class="mnz-drilldown-hint mnz-drilldown-hint-monthly">\'+(d.hintMonth||"")+\'</div>\'); applyAndRender(); updateFilterBar(); return;'.
+				'}'.
 				'var dateStr = mk + "-" + (String(day).padStart(2, "0"));'.
 				'var filtered = clocks.filter(function(t){ var dt=new Date(t*1000); var ds=dt.getFullYear()+"-"+(String(dt.getMonth()+1).padStart(2,"0"))+"-"+(String(dt.getDate()).padStart(2,"0")); return ds===dateStr; });'.
 				'var parts = dateStr.split("-"); var y=parseInt(parts[0],10), m=parseInt(parts[1],10)-1, dNum=parseInt(parts[2],10); var sampleDate=new Date(y,m,dNum); var weekday=sampleDate.getDay();'.
