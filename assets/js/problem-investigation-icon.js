@@ -138,13 +138,13 @@
 			const insertCell = getInsertCell(row, ids);
 			if (!insertCell) return;
 
-			const balazinho = insertCell.querySelector('.zi-alert-with-content');
+			const alertIcon = insertCell.querySelector('.zi-alert-with-content');
 			const icon = createInvestigationIcon(ids.eventid, ids.triggerid);
 			const spacer = document.createTextNode('\u00A0');
 
-			if (balazinho && balazinho.parentNode) {
-				const parent = balazinho.parentNode;
-				const nextSibling = balazinho.nextSibling;
+			if (alertIcon && alertIcon.parentNode) {
+				const parent = alertIcon.parentNode;
+				const nextSibling = alertIcon.nextSibling;
 				if (nextSibling) {
 					parent.insertBefore(spacer, nextSibling);
 					parent.insertBefore(icon, nextSibling);

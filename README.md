@@ -25,9 +25,11 @@ A Zabbix module providing detailed incident investigation with temporal patterns
 
 ## Requirements
 
-- Zabbix 7.0 or higher
+- Zabbix 7.0.x (created and tested on 7.0.x; may work on higher versions)
 - PHP 8.0+
 - Zabbix with Services and SLA configured (optional, for SLA impact panel)
+
+If the module does not work on your Zabbix version, please open an [issue](https://github.com/YOUR-USERNAME/timepattern-incident-investigation/issues) on GitHub.
 
 ---
 

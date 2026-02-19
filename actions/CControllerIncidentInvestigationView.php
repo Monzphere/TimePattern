@@ -52,7 +52,6 @@ class CControllerIncidentInvestigationView extends CController {
 			'six_months_events' => [],
 			'items' => [],
 			'monthly_comparison' => [],
-			'system_metrics' => ['available' => false, 'categories' => []],
 			'user' => ['debug_mode' => CWebUser::$data['debug_mode'] ?? 0]
 		];
 
@@ -225,11 +224,6 @@ class CControllerIncidentInvestigationView extends CController {
 			];
 		}
 
-		$system_metrics = ['available' => false, 'categories' => []];
-		if ($host && isset($event['clock'])) {
-			$system_metrics = $this->getSystemMetrics($host['hostid']);
-		}
-
 		$actions_data = ['result' => null, 'users' => [], 'mediatypes' => []];
 		if ($event && !empty($event['eventid']) && isset($event['clock'])) {
 			require_once dirname(__FILE__).'/../../../include/actions.inc.php';
@@ -260,7 +254,6 @@ class CControllerIncidentInvestigationView extends CController {
 		$data['six_months_events'] = $six_months_events;
 		$data['items'] = $items;
 		$data['monthly_comparison'] = $monthly_comparison;
-		$data['system_metrics'] = $system_metrics;
 
 		$response = new CControllerResponseData($data);
 		$response->setTitle(_('Incident Investigation'));
@@ -274,39 +267,5 @@ class CControllerIncidentInvestigationView extends CController {
 			9 => _('September'), 10 => _('October'), 11 => _('November'), 12 => _('December')
 		];
 		return ($months[(int)date('n', $ts)] ?? '') . ' ' . date('Y', $ts);
-	}
-
-	private function getSystemMetrics(string $hostid): array {
-		$metrics = [];
-		$patterns = [
-			'CPU' => ['system.cpu.util', 'system.cpu.utilization'],
-			'Memory' => ['vm.memory.util', 'vm.memory.size[available]'],
-			'Load' => ['system.cpu.load', 'system.cpu.load[,avg5]'],
-			'Disk' => ['vfs.fs.size[/,pused]', 'vfs.fs.used[/]']
-		];
-		foreach ($patterns as $cat => $keys) {
-			foreach ($keys as $k) {
-				$items = API::Item()->get([
-					'output' => ['itemid', 'name', 'key_', 'units', 'lastvalue', 'value_type'],
-					'hostids' => [$hostid],
-					'search' => ['key_' => $k],
-					'monitored' => true,
-					'filter' => ['value_type' => [ITEM_VALUE_TYPE_FLOAT, ITEM_VALUE_TYPE_UINT64]],
-					'limit' => 1
-				]);
-				if (!empty($items)) {
-					$i = $items[0];
-					$metrics[] = [
-						'name' => $i['name'],
-						'key' => $i['key_'],
-						'units' => $i['units'] ?? '',
-						'category' => $cat,
-						'last_value' => $i['lastvalue'] ?? 'N/A'
-					];
-					break;
-				}
-			}
-		}
-		return ['available' => !empty($metrics), 'categories' => $metrics];
 	}
 }

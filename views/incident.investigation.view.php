@@ -14,7 +14,6 @@ $related_events = $data['related_events'] ?? [];
 $six_months_events = $data['six_months_events'] ?? [];
 $items = $data['items'] ?? [];
 $monthly_comparison = $data['monthly_comparison'] ?? [];
-$system_metrics = $data['system_metrics'] ?? ['available' => false, 'categories' => []];
 $actions_data = $data['actions_data'] ?? ['result' => null, 'users' => [], 'mediatypes' => []];
 
 $event_time = isset($event['clock']) ? zbx_date2str(DATE_TIME_FORMAT_SECONDS, $event['clock']) : '';
