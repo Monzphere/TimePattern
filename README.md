@@ -55,17 +55,7 @@ mkdir -p /usr/share/zabbix/modules
 cp -r timepattern-incident-investigation /usr/share/zabbix/modules/TimePattern
 ```
 
-### 3. Restart Zabbix (frontend)
-
-```bash
-systemctl restart php-fpm
-# or, depending on your environment:
-systemctl restart apache2
-# or
-systemctl restart nginx
-```
-
-### 4. Enable the module in Zabbix
+### 3. Enable the module in Zabbix
 
 1. Go to **Administration → General → Modules**
 2. Find **Incident Investigation**
