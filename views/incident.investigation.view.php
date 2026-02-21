@@ -19,6 +19,7 @@ $six_months_events = $data['six_months_events'] ?? [];
 $items = $data['items'] ?? [];
 $monthly_comparison = $data['monthly_comparison'] ?? [];
 $actions_data = $data['actions_data'] ?? ['result' => null, 'users' => [], 'mediatypes' => []];
+$maintenances = $data['maintenances'] ?? [];
 
 $event_time = isset($event['clock']) ? zbx_date2str(DATE_TIME_FORMAT_SECONDS, $event['clock']) : '';
 $event_date = isset($event['clock']) ? zbx_date2str('Y-m-d', $event['clock']) : '';
@@ -483,6 +484,9 @@ $event_clocks = array_column($pattern_events, 'clock');
 $hostid_for_sla = ($host && isset($host['hostid'])) ? $host['hostid'] : null;
 $chart_data = [
 	'hostid' => $hostid_for_sla,
+	'maintenances' => array_map(function ($m) {
+		return ['name' => $m['name'], 'active_since' => (int)$m['active_since'], 'active_till' => (int)$m['active_till']];
+	}, $maintenances),
 	'hourly' => array_values($hourly_data),
 	'weekly' => array_values($weekly_data),
 	'monthly' => $monthly_values,
@@ -530,7 +534,13 @@ $chart_data = [
 	'iconClass' => ZBX_STYLE_ICON.' '.ZBX_ICON_MORE,
 	'btnOverlayCloseClass' => ZBX_STYLE_BTN_OVERLAY_CLOSE,
 	'pagingSelectedClass' => ZBX_STYLE_PAGING_SELECTED,
-	'pagingBtnContainerClass' => ZBX_STYLE_PAGING_BTN_CONTAINER
+	'pagingBtnContainerClass' => ZBX_STYLE_PAGING_BTN_CONTAINER,
+	'legendMaintenanceBorder' => _('Icon = incident during maintenance'),
+	'legendMaintenanceBar' => _('Orange bar = maintenance period'),
+	'maintIconClass' => 'zi zi-wrench-alt-small',
+	'maintenancesCount' => _('maintenances'),
+	'tooltipMaintenances' => _('Maintenances'),
+	'tooltipIncidents' => _('incidents')
 ];
 
 ob_start();

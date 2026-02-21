@@ -37,6 +37,13 @@ jQuery(document).ready(function() {
 	}
 
 	var currentFilter = null; var currentAgg = null;
+	function getCurrentClocks() {
+		if (!currentFilter) return clocks;
+		if (currentFilter.type === "heatmap") return clocks.filter(function(t) { var dt = new Date(t * 1000); return dt.getDay() === currentFilter.weekday && dt.getHours() === currentFilter.hour; });
+		if (currentFilter.type === "month" && currentFilter.value != null) { var mk = monthKeys[currentFilter.value]; return clocks.filter(function(t) { var dt = new Date(t * 1000); return dt.getFullYear() + "-" + (String(dt.getMonth() + 1).padStart(2, "0")) === mk; }); }
+		if (currentFilter.type === "day" && currentFilter.monthIdx != null && currentFilter.day != null) { var mk = monthKeys[currentFilter.monthIdx]; var dateStr = mk + "-" + (String(currentFilter.day).padStart(2, "0")); return clocks.filter(function(t) { var dt = new Date(t * 1000); var ds = dt.getFullYear() + "-" + (String(dt.getMonth() + 1).padStart(2, "0")) + "-" + (String(dt.getDate()).padStart(2, "0")); return ds === dateStr; }); }
+		return clocks;
+	}
 	var avgH = (d.avgPerHour && d.avgPerHour > 0) ? d.avgPerHour : 0;
 	var avgW = (d.avgPerWeekday && d.avgPerWeekday > 0) ? d.avgPerWeekday : 0;
 	var avgM = (d.avgPerMonth && d.avgPerMonth > 0) ? d.avgPerMonth : 0;
@@ -60,6 +67,7 @@ jQuery(document).ready(function() {
 	function renderHeatmap(agg) {
 		var el = document.getElementById("mnz-investigation-heatmap"); if (!el) return;
 		var wh = agg.weeklyHourlyDetails || []; var maxVal = 0; for (var w = 0; w < 7; w++) for (var h = 0; h < 24; h++) if (wh[w] && wh[w][h] > maxVal) maxVal = wh[w][h]; if (maxVal === 0) maxVal = 1;
+		var maintCells = getMaintenanceCells(getCurrentClocks());
 		var html = '<div class="mnz-heatmap-grid"><div class="mnz-heatmap-labels-col"><div class="mnz-heatmap-corner"></div>';
 		for (var w = 0; w < 7; w++) html += '<div class="mnz-heatmap-row-label">' + (d.weekLabels[w] || "") + '</div>';
 		html += '</div><div class="mnz-heatmap-body"><div class="mnz-heatmap-hours-row">';
@@ -71,11 +79,24 @@ jQuery(document).ready(function() {
 				var v = (wh[w] && wh[w][h]) || 0; var intensity = v / maxVal;
 				var col = intensity > 0 ? (intensity > 0.5 ? (intensity > 0.8 ? "#c0392b" : "#e67e22") : "#27ae60") : barBg;
 				var cls = v > 0 ? " mnz-heatmap-cell-active" : "";
-				html += '<div class="mnz-heatmap-cell' + cls + '" data-w="' + w + '" data-h="' + h + '" style="background:' + col + '" title="' + (d.weekLabels[w] || "") + ' ' + (d.hourLabels[h] || h) + ': ' + v + '">' + v + '</div>';
+				var key = w + "-" + h; var isMaint = maintCells[key];
+				var maintIcon = isMaint ? '<span class="mnz-heatmap-maint-icon ' + (d.maintIconClass || "zi zi-wrench-alt-small") + '" aria-hidden="true"></span>' : '';
+				var maintTip = isMaint ? " | " + (d.legendMaintenanceBorder || "Maintenance") + ": " + (Array.isArray(isMaint) ? isMaint.join(", ") : isMaint) : "";
+				html += '<div class="mnz-heatmap-cell' + cls + '" data-w="' + w + '" data-h="' + h + '" style="background:' + col + '" title="' + (d.weekLabels[w] || "") + ' ' + (d.hourLabels[h] || h) + ': ' + v + maintTip + '"><span class="mnz-heatmap-cell-val">' + v + '</span>' + maintIcon + '</div>';
 			}
 			html += '</div>';
 		}
-		html += '</div></div>'; el.innerHTML = html;
+		html += '</div></div>';
+		el.innerHTML = html;
+		var legEl = document.querySelector(".mnz-incident-section-heatmap .mnz-heatmap-legend");
+		if (legEl) {
+			var existing = legEl.querySelector(".mnz-heatmap-legend-maint");
+			if (existing) existing.remove();
+			var maintLeg = document.createElement("div");
+			maintLeg.className = "mnz-heatmap-legend-maint";
+			maintLeg.innerHTML = '<span class="mnz-heatmap-legend-maint-sample ' + (d.maintIconClass || "zi zi-wrench-alt-small") + '"></span><span class="mnz-heatmap-legend-maint-label">' + (d.legendMaintenanceBorder || "Icon = incident during maintenance") + '</span>';
+			legEl.appendChild(maintLeg);
+		}
 		jQuery("#mnz-investigation-heatmap").off("click", ".mnz-heatmap-cell-active").on("click", ".mnz-heatmap-cell-active", function() {
 			var center = jQuery(this); var w = parseInt(center.data("w"), 10); var h = parseInt(center.data("h"), 10);
 			if (currentFilter && currentFilter.type === "heatmap" && currentFilter.weekday === w && currentFilter.hour === h) {
@@ -86,30 +107,159 @@ jQuery(document).ready(function() {
 		});
 	}
 
+	function getMaintenanceCells(clkList) {
+		var cells = {}, m = (d.maintenances || []);
+		clkList = clkList || clocks;
+		var filter = currentFilter;
+		for (var i = 0; i < clkList.length; i++) {
+			var t = parseInt(clkList[i], 10);
+			if (isNaN(t)) continue;
+			for (var j = 0; j < m.length; j++) {
+				if (t >= m[j].active_since && t <= m[j].active_till) {
+					var dt = new Date(t * 1000);
+					var w = dt.getDay(), h = dt.getHours();
+					var key = w + "-" + h;
+					if (!cells[key]) cells[key] = [];
+					if (cells[key].indexOf(m[j].name) === -1) cells[key].push(m[j].name);
+					break;
+				}
+			}
+		}
+		if (filter && filter.type === "day" && filter.weekday != null) {
+			var mk = monthKeys[filter.monthIdx]; if (!mk) return cells;
+			var parts = mk.split("-"); var y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10) - 1;
+			var dayStart = Math.floor(new Date(y, mo, filter.day, 0, 0, 0).getTime() / 1000);
+			var dayEnd = Math.floor(new Date(y, mo, filter.day, 23, 59, 59).getTime() / 1000);
+			for (var j = 0; j < m.length; j++) {
+				if (m[j].active_till >= dayStart && m[j].active_since <= dayEnd) {
+					for (var t = Math.max(m[j].active_since, dayStart); t <= Math.min(m[j].active_till, dayEnd); t += 3600) {
+						var dt = new Date(t * 1000);
+						var h = dt.getHours();
+						var key = filter.weekday + "-" + h;
+						if (!cells[key]) cells[key] = [];
+						if (cells[key].indexOf(m[j].name) === -1) cells[key].push(m[j].name);
+					}
+				}
+			}
+		}
+		return cells;
+	}
+	function getMonthMaintenances(monthKey) {
+		var m = (d.maintenances || []), result = [];
+		var parts = (monthKey || "").split("-");
+		if (parts.length < 2) return result;
+		var y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10) - 1;
+		var monthStart = Math.floor(new Date(y, mo, 1).getTime() / 1000);
+		var monthEnd = Math.floor(new Date(y, mo + 1, 0, 23, 59, 59).getTime() / 1000);
+		var fmt = function(d) { return String(d.getDate()).padStart(2, "0") + "/" + (String(d.getMonth() + 1).padStart(2, "0")); };
+		for (var j = 0; j < m.length; j++) {
+			if (m[j].active_till >= monthStart && m[j].active_since <= monthEnd) {
+				var clampS = Math.max(m[j].active_since, monthStart);
+				var clampT = Math.min(m[j].active_till, monthEnd);
+				var dS = new Date(clampS * 1000), dT = new Date(clampT * 1000);
+				var range = fmt(dS) === fmt(dT) ? fmt(dS) : fmt(dS) + "-" + fmt(dT);
+				result.push({ name: m[j].name, range: range });
+			}
+		}
+		return result;
+	}
+	function getMonthMaintenanceDays(monthKey) {
+		var days = {}, m = (d.maintenances || []);
+		var parts = (monthKey || "").split("-");
+		if (parts.length < 2) return days;
+		var y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10) - 1;
+		var daysInMonth = new Date(y, mo + 1, 0).getDate();
+		for (var day = 1; day <= daysInMonth; day++) {
+			var dayStart = Math.floor(new Date(y, mo, day, 0, 0, 0).getTime() / 1000);
+			var dayEnd = Math.floor(new Date(y, mo, day, 23, 59, 59).getTime() / 1000);
+			for (var j = 0; j < m.length; j++) {
+				if (m[j].active_till >= dayStart && m[j].active_since <= dayEnd) {
+					days[day] = 1;
+					break;
+				}
+			}
+		}
+		return days;
+	}
+	function getDayMaintenances(monthKey, dayNum) {
+		var result = [], m = (d.maintenances || []);
+		var parts = (monthKey || "").split("-");
+		if (parts.length < 2) return result;
+		var y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10) - 1;
+		var dayStart = Math.floor(new Date(y, mo, dayNum, 0, 0, 0).getTime() / 1000);
+		var dayEnd = Math.floor(new Date(y, mo, dayNum, 23, 59, 59).getTime() / 1000);
+		var fmt = function(d) { return String(d.getDate()).padStart(2, "0") + "/" + (String(d.getMonth() + 1).padStart(2, "0")); };
+		for (var j = 0; j < m.length; j++) {
+			if (m[j].active_till >= dayStart && m[j].active_since <= dayEnd) {
+				var clampS = Math.max(m[j].active_since, dayStart);
+				var clampT = Math.min(m[j].active_till, dayEnd);
+				var dS = new Date(clampS * 1000), dT = new Date(clampT * 1000);
+				var range = fmt(dS) === fmt(dT) ? fmt(dS) : fmt(dS) + "-" + fmt(dT);
+				result.push({ name: m[j].name, range: range });
+			}
+		}
+		return result;
+	}
+	function monthHadMaintenance(monthKey) {
+		var arr = getMonthMaintenances(monthKey);
+		return arr.length > 0 ? arr : null;
+	}
 	function renderMonthly(elId, data, labels) {
 		var el = document.getElementById(elId); if (!el) return;
 		var max = Math.max.apply(Math, data); if (max === 0) max = 1;
 		var html = '<div class="mnz-investigation-monthly-bars">';
 		for (var i = 0; i < data.length; i++) {
+			var mk = monthKeys[i];
 			var h = (data[i] / max) * 100; var col = data[i] > 0 ? (i === data.length - 1 ? "#ff9800" : barFill) : barBg; var cls = data[i] > 0 ? " mnz-bar-clickable" : "";
 			var comp = ""; if (avgM > 0 && data[i] > avgM * 1.2) { var mult = (data[i] / avgM).toFixed(1); comp = ' <span class="mnz-bar-compare">' + mult + timesStr + '</span>'; }
-			html += '<div class="mnz-investigation-monthly-item' + cls + '" data-index="' + i + '" data-type="monthly" title="' + labels[i] + ': ' + data[i] + '"><div style="font-size:11px;font-weight:bold;color:' + tc + '">' + data[i] + comp + '</div><div class="mnz-investigation-monthly-bar" style="height:' + Math.max(h, 4) + 'px;background:' + col + '"></div><span class="mnz-investigation-monthly-label" style="color:' + lc + '">' + labels[i] + '</span></div>';
+			var maintList = monthHadMaintenance(mk);
+			var maintTooltip = maintList ? " " + (d.tooltipMaintenances || "Maintenances") + ": " + maintList.map(function(m) { return m.name + " (" + m.range + ")"; }).join(", ") + "." : "";
+			var title = labels[i] + ": " + data[i] + " " + (d.tooltipIncidents || "incidents") + maintTooltip;
+			var safeTitle = (title || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+			var stripHtml = "";
+			var hadMaint = maintList && maintList.length > 0;
+			stripHtml = '<div class="mnz-month-maint-indicator">';
+			var maintData = hadMaint ? JSON.stringify(maintList).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;") : "";
+			var maintCount = hadMaint ? maintList.length : 0;
+			stripHtml += '<span class="mnz-month-maint-bar' + (hadMaint ? " mnz-maint-day-active mnz-maint-clickable" : "") + '"' + (maintData ? ' data-maints="' + maintData + '"' : '') + '>' + (maintCount > 0 ? maintCount : '') + '</span>';
+			stripHtml += '</div>';
+			html += '<div class="mnz-investigation-monthly-item' + cls + '" data-index="' + i + '" data-type="monthly" title="' + safeTitle + '"><div class="mnz-monthly-item-header"><span class="mnz-monthly-value">' + data[i] + '</span>' + comp + '</div><div class="mnz-investigation-monthly-bar" style="height:' + Math.max(h, 4) + 'px;background:' + col + '"></div>' + stripHtml + '<span class="mnz-investigation-monthly-label" style="color:' + lc + '">' + labels[i] + '</span></div>';
 		}
-		html += '</div>'; el.innerHTML = html;
+		html += '</div>';
+		html += '<div class="mnz-drilldown-maint-legend">' + (d.legendMaintenanceBar || d.legendMaintenanceBorder || "Orange bar = maintenance period") + '</div>';
+		el.innerHTML = html;
 	}
 
-	function renderDrilldown(containerId, data, labels, title, barColor, isDayDrilldown) {
+	function renderDrilldown(containerId, data, labels, title, barColor, isDayDrilldown, monthKey) {
 		var c = document.getElementById(containerId); if (!c) return;
 		var max = Math.max.apply(Math, data); if (max === 0) max = 1;
 		var hintDay = (isDayDrilldown && d.hintDay) ? '<div class="mnz-drilldown-subhint">' + d.hintDay + '</div>' : "";
-		var html = '<div class="mnz-drilldown-content"><div class="mnz-drilldown-title">' + title + '</div>' + hintDay + '<div class="mnz-drilldown-chart"><div class="mnz-investigation-bars">';
+		var html = '<div class="mnz-drilldown-content"><div class="mnz-drilldown-title">' + title + '</div>' + hintDay + '<div class="mnz-drilldown-chart"><div class="mnz-investigation-bars mnz-drilldown-daily-bars">';
 		for (var i = 0; i < data.length; i++) {
 			var h = (data[i] / max) * 80; var day = i + 1;
 			var cls = (isDayDrilldown && data[i] > 0) ? " mnz-drilldown-day-bar mnz-bar-clickable" : ""; var dday = (isDayDrilldown && data[i] > 0) ? ' data-day="' + day + '"' : "";
 			var valSpan = '<span class="mnz-drilldown-bar-value">' + data[i] + '</span>';
 			html += '<div class="mnz-investigation-bar-item mnz-drilldown-bar-item' + cls + '"' + dday + ' title="' + labels[i] + ': ' + data[i] + '">' + valSpan + '<div class="mnz-investigation-bar" style="height:' + Math.max(h, 4) + 'px;background:' + (data[i] > 0 ? barColor : barBg) + '"></div><span class="mnz-investigation-bar-label">' + labels[i] + '</span></div>';
 		}
-		html += '</div></div><button type="button" class="btn btn-alt mnz-drilldown-close">' + (d.close || "Close") + '</button></div>';
+		html += '</div>';
+		if (monthKey && isDayDrilldown) {
+			var maintDays = getMonthMaintenanceDays(monthKey);
+			if (Object.keys(maintDays).length > 0) {
+				var stripHtml = '<div class="mnz-drilldown-maint-strip">';
+				var daysInMonth = 31;
+				var parts = (monthKey || "").split("-");
+				if (parts.length >= 2) { var y = parseInt(parts[0], 10), mo = parseInt(parts[1], 10) - 1; daysInMonth = new Date(y, mo + 1, 0).getDate(); }
+				for (var dNum = 1; dNum <= daysInMonth; dNum++) {
+					var dayMaints = maintDays[dNum] ? getDayMaintenances(monthKey, dNum) : [];
+					var dayMaintData = dayMaints.length > 0 ? JSON.stringify(dayMaints).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;") : "";
+					var dayMaintCount = dayMaints.length;
+					stripHtml += '<span class="mnz-drilldown-maint-day' + (maintDays[dNum] ? " mnz-maint-day-active mnz-maint-clickable" : "") + '" data-day="' + dNum + '"' + (dayMaintData ? ' data-maints="' + dayMaintData + '"' : '') + '>' + (dayMaintCount > 0 ? dayMaintCount : '') + '</span>';
+				}
+				stripHtml += '</div><div class="mnz-drilldown-maint-legend">' + (d.legendMaintenanceBar || d.legendMaintenanceBorder || "Orange bar = maintenance period") + '</div>';
+				html += stripHtml;
+			}
+		}
+		html += '</div><button type="button" class="btn btn-alt mnz-drilldown-close">' + (d.close || "Close") + '</button></div>';
 		c.innerHTML = html; c.classList.add("mnz-drilldown-visible");
 	}
 
@@ -117,6 +267,52 @@ jQuery(document).ready(function() {
 		hintClass = hintClass || "";
 		jQuery("#" + containerId + " .mnz-drilldown-close").off("click").on("click", function() { var c = jQuery("#" + containerId); c.removeClass("mnz-drilldown-visible").empty(); c.append('<div class="mnz-drilldown-hint ' + hintClass + '">' + hint + '</div>'); });
 	}
+
+	function showMaintTooltip(target, maints) {
+		if (!maints || maints.length === 0) return;
+		var pop = document.getElementById("mnz-maint-tooltip-popover");
+		if (!pop) {
+			pop = document.createElement("div");
+			pop.id = "mnz-maint-tooltip-popover";
+			pop.className = "overlay-dialogue wordbreak";
+			var appendTo = document.querySelector(".wrapper") || document.body;
+			appendTo.appendChild(pop);
+			jQuery(document).on("keydown.mnzMaintTooltip", function(e) { if (e.key === "Escape") closeMaintTooltip(); });
+		}
+		var items = maints.map(function(m) { return (m.name || "") + " (" + (m.range || "") + ")"; }).join("<br>");
+		var closeClass = d.btnOverlayCloseClass || "btn-overlay-close";
+		var closeTitle = d.close || "Close";
+		pop.innerHTML = '<button type="button" class="' + closeClass + '" title="' + closeTitle.replace(/"/g, "&quot;") + '"></button><div class="hintbox-wrap">' + items + '</div>';
+		jQuery(pop).find("." + closeClass).off("click").on("click", closeMaintTooltip);
+		pop.classList.add("mnz-maint-tooltip-visible");
+		pop.style.display = "block";
+		var rect = target.getBoundingClientRect();
+		var top = rect.bottom + 6;
+		var left = rect.left + (rect.width / 2) - 120;
+		if (left < 8) left = 8;
+		if (left > window.innerWidth - 256) left = Math.max(8, window.innerWidth - 256);
+		if (top > window.innerHeight - 100) top = rect.top - 80;
+		pop.style.position = "fixed";
+		pop.style.top = top + "px";
+		pop.style.left = left + "px";
+		setTimeout(function() {
+			jQuery(document).one("click.mnzMaintTooltip", function(e) {
+				if (!pop.contains(e.target) && !jQuery(e.target).closest(".mnz-maint-clickable").length) closeMaintTooltip();
+			});
+		}, 0);
+	}
+	function closeMaintTooltip() {
+		var pop = document.getElementById("mnz-maint-tooltip-popover");
+		if (pop) { pop.classList.remove("mnz-maint-tooltip-visible"); pop.style.display = "none"; }
+	}
+
+	jQuery(document).off("click", ".mnz-maint-clickable").on("click", ".mnz-maint-clickable", function(e) {
+		e.preventDefault();
+		e.stopPropagation();
+		var maints = [];
+		try { maints = JSON.parse(jQuery(this).attr("data-maints") || "[]"); } catch (x) {}
+		if (maints.length > 0) showMaintTooltip(this, maints);
+	});
 
 	function countSameSlotLastWeek(weekday, hour) {
 		var now = Math.floor(Date.now() / 1000); var weekSec = 604800; var lastWeekEnd = now - weekSec; var lastWeekStart = lastWeekEnd - weekSec;
@@ -148,14 +344,15 @@ jQuery(document).ready(function() {
 		renderHeatmap(currentAgg);
 		renderMonthly("mnz-investigation-monthly-chart", currentAgg.monthly, d.monthLabels);
 		var dayLabs = (d.dayLabels && d.dayLabels.length) ? d.dayLabels : []; while (dayLabs.length < 31) dayLabs.push(dayLabs.length + 1);
-		jQuery("#mnz-investigation-monthly-chart").off("click", ".mnz-bar-clickable").on("click", ".mnz-bar-clickable", function() {
+		jQuery("#mnz-investigation-monthly-chart").off("click", ".mnz-bar-clickable").on("click", ".mnz-bar-clickable", function(e) {
+			if (jQuery(e.target).closest(".mnz-month-maint-indicator").length) return;
 			var idx = parseInt(jQuery(this).data("index"), 10); var mk = monthKeys[idx]; if (!mk) return;
 			if (currentFilter && currentFilter.type === "month" && currentFilter.value === idx) {
 				currentFilter = null; currentAgg = computeAggregates(clocks); var m = jQuery("#mnz-monthly-drilldown"); m.removeClass("mnz-drilldown-visible").empty().append('<div class="mnz-drilldown-hint mnz-drilldown-hint-monthly">' + (d.hintMonth || "") + '</div>'); applyAndRender(); updateFilterBar(); return;
 			}
 			var filtered = clocks.filter(function(t) { var dt = new Date(t * 1000); return dt.getFullYear() + "-" + (String(dt.getMonth() + 1).padStart(2, "0")) === mk; });
 			currentFilter = { type: "month", value: idx }; currentAgg = computeAggregates(filtered); jQuery("#mnz-weekly-drilldown").removeClass("mnz-drilldown-visible"); applyAndRender(); updateFilterBar();
-			var dd = currentAgg.monthlyDailyDetails[idx]; if (dd) renderDrilldown("mnz-monthly-drilldown", dd, dayLabs, (d.dailyDistribution || "Daily distribution") + " - " + d.monthLabels[idx], barFill, true); setupCloseHandler("mnz-monthly-drilldown", d.hintMonth || "", "mnz-drilldown-hint-monthly");
+			var dd = currentAgg.monthlyDailyDetails[idx]; if (dd) renderDrilldown("mnz-monthly-drilldown", dd, dayLabs, (d.dailyDistribution || "Daily distribution") + " - " + d.monthLabels[idx], barFill, true, mk); setupCloseHandler("mnz-monthly-drilldown", d.hintMonth || "", "mnz-drilldown-hint-monthly");
 			jQuery("#mnz-monthly-drilldown").off("click", ".mnz-drilldown-day-bar").on("click", ".mnz-drilldown-day-bar", function() {
 				var day = parseInt(jQuery(this).data("day"), 10); var monthIdx = (currentFilter.type === "day" ? currentFilter.monthIdx : currentFilter.value); var mk = monthKeys[monthIdx]; if (!mk || !day) return;
 				if (currentFilter && currentFilter.type === "day" && currentFilter.monthIdx === monthIdx && currentFilter.day === day) {

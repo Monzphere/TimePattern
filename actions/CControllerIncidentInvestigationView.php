@@ -112,7 +112,7 @@ class CControllerIncidentInvestigationView extends CController {
 			$hosts = API::Host()->get([
 				'output' => ['hostid', 'name', 'status', 'description'],
 				'hostids' => $actual_hostid,
-				'selectHostGroups' => ['name'],
+				'selectHostGroups' => ['groupid', 'name'],
 				'selectInterfaces' => ['type', 'main', 'ip', 'port'],
 				'selectTags' => ['tag', 'value']
 			]);
@@ -271,6 +271,13 @@ class CControllerIncidentInvestigationView extends CController {
 			$six_months_events
 		);
 
+		$data['maintenances'] = $this->getMaintenancesInPeriod(
+			$actual_hostid,
+			$host,
+			strtotime('-12 months'),
+			time()
+		);
+
 		$response = new CControllerResponseData($data);
 		$response->setTitle(_('Incident Investigation'));
 		$this->setResponse($response);
@@ -375,6 +382,149 @@ class CControllerIncidentInvestigationView extends CController {
 			}
 		}
 		return $result;
+	}
+
+	/**
+	 * Get maintenance windows that overlap the period and apply to the host or its groups.
+	 * Expands timeperiods so the full schedule is considered, not only active_since/active_till.
+	 */
+	private function getMaintenancesInPeriod(int $hostid, ?array $host, int $time_from, int $time_to): array {
+		if ($hostid <= 0 || $host === null || !CWebUser::checkAccess(\CRoleHelper::UI_CONFIGURATION_MAINTENANCE)) {
+			return [];
+		}
+		$groupids = array_column($host['hostgroups'] ?? [], 'groupid');
+		$base = [
+			'output' => ['maintenanceid', 'name', 'description', 'active_since', 'active_till'],
+			'selectTimeperiods' => ['timeperiod_type', 'period', 'start_date', 'start_time', 'every', 'day', 'dayofweek', 'month'],
+			'preservekeys' => true
+		];
+		$all = [];
+		try {
+			$by_host = API::Maintenance()->get(array_merge($base, ['hostids' => [$hostid]]));
+			$all = $by_host;
+			if (!empty($groupids)) {
+				$by_group = API::Maintenance()->get(array_merge($base, ['groupids' => $groupids]));
+				$all = $all + $by_group;
+			}
+		} catch (\Throwable $e) {
+			return [];
+		}
+		$result = [];
+		foreach ($all as $m) {
+			$since = (int) ($m['active_since'] ?? 0);
+			$till = (int) ($m['active_till'] ?? 0);
+			if ($till < $time_from || $since > $time_to) {
+				continue;
+			}
+			$name = $m['name'] ?? _('Maintenance');
+			$description = $m['description'] ?? '';
+			$segments = $this->expandMaintenanceTimeperiods($m, $since, $till, max($since, $time_from), min($till, $time_to));
+			foreach ($segments as [$seg_since, $seg_till]) {
+				if ($seg_till >= $time_from && $seg_since <= $time_to) {
+					$result[] = [
+						'name' => $name,
+						'description' => $description,
+						'active_since' => (int) $seg_since,
+						'active_till' => (int) $seg_till
+					];
+				}
+			}
+		}
+		usort($result, function ($a, $b) {
+			return $b['active_since'] - $a['active_since'];
+		});
+		return $result;
+	}
+
+	/**
+	 * Expand maintenance timeperiods into concrete [since, till] segments.
+	 *
+	 * @param array $m              Maintenance with timeperiods
+	 * @param int   $m_since         Maintenance active_since (for alignment)
+	 * @param int   $m_till          Maintenance active_till
+	 * @param int   $clip_since      Clamp segment start (e.g. time_from)
+	 * @param int   $clip_till       Clamp segment end (e.g. time_to)
+	 */
+	private function expandMaintenanceTimeperiods(array $m, int $m_since, int $m_till, int $clip_since, int $clip_till): array {
+		$timeperiods = $m['timeperiods'] ?? [];
+		if (empty($timeperiods)) {
+			return [[$clip_since, $clip_till]];
+		}
+		$segments = [];
+		foreach ($timeperiods as $tp) {
+			$type = (int) ($tp['timeperiod_type'] ?? 0);
+			$period = max(60, (int) ($tp['period'] ?? 3600));
+			switch ($type) {
+				case TIMEPERIOD_TYPE_ONETIME:
+					$start = (int) ($tp['start_date'] ?? $m_since);
+					$end = $start + $period;
+					if ($end >= $clip_since && $start <= $clip_till) {
+						$segments[] = [max($start, $clip_since), min($end, $clip_till)];
+					}
+					break;
+				case TIMEPERIOD_TYPE_DAILY:
+					$start_time = (int) ($tp['start_time'] ?? 0);
+					$every = max(1, (int) ($tp['every'] ?? 1));
+					$day0 = (int) floor($m_since / 86400) * 86400;
+					for ($t = $day0; $t <= $clip_till; $t += 86400 * $every) {
+						$occ_start = $t + $start_time;
+						$occ_end = $occ_start + $period;
+						if ($occ_end >= $clip_since && $occ_start <= $clip_till) {
+							$segments[] = [max($occ_start, $clip_since), min($occ_end, $clip_till)];
+						}
+					}
+					break;
+				case TIMEPERIOD_TYPE_WEEKLY:
+					$start_time = (int) ($tp['start_time'] ?? 0);
+					$dayofweek = (int) ($tp['dayofweek'] ?? 1);
+					$max_days = (int) ceil(($clip_till - $clip_since) / 86400) + 7;
+					for ($d = 0; $d < $max_days; $d++) {
+						$t = $clip_since + $d * 86400;
+						$w = (int) date('w', $t);
+						if (!($dayofweek & (1 << $w))) {
+							continue;
+						}
+						$day_start = (int) floor($t / 86400) * 86400;
+						$occ_start = $day_start + $start_time;
+						$occ_end = $occ_start + $period;
+						if ($occ_end >= $clip_since && $occ_start <= $clip_till) {
+							$segments[] = [max($occ_start, $clip_since), min($occ_end, $clip_till)];
+						}
+					}
+					break;
+				case TIMEPERIOD_TYPE_MONTHLY:
+					$start_time = (int) ($tp['start_time'] ?? 0);
+					$day = (int) ($tp['day'] ?? 1);
+					$month_mask = (int) ($tp['month'] ?? 4095);
+					$y = (int) date('Y', $clip_since);
+					$mo = (int) date('n', $clip_since);
+					$end_y = (int) date('Y', $clip_till);
+					$end_mo = (int) date('n', $clip_till);
+					while ($y < $end_y || ($y === $end_y && $mo <= $end_mo)) {
+						if ($month_mask & (1 << ($mo - 1))) {
+							$dim = (int) date('t', mktime(0, 0, 0, $mo, 1, $y));
+							$d = $day > 0 ? min($day, $dim) : 1;
+							$occ_start = mktime(0, 0, 0, $mo, $d, $y) + $start_time;
+							$occ_end = $occ_start + $period;
+							if ($occ_end >= $clip_since && $occ_start <= $clip_till) {
+								$segments[] = [max($occ_start, $clip_since), min($occ_end, $clip_till)];
+							}
+						}
+						$mo++;
+						if ($mo > 12) {
+							$mo = 1;
+							$y++;
+						}
+					}
+					break;
+				default:
+					$segments[] = [$clip_since, $clip_till];
+			}
+		}
+		if (empty($segments)) {
+			$segments[] = [$clip_since, $clip_till];
+		}
+		return $segments;
 	}
 
 	private function formatMonth(int $ts): string {

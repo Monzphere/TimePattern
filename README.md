@@ -25,12 +25,35 @@ A Zabbix module providing detailed incident investigation with temporal patterns
 - **Quick comparison**: "Same slot last week" and "Same day last week" when filters are applied
 - **Export**: report exportable via print/PDF
 - **Direct access**: magnifying glass icon (🔍) on the problem list and problem widgets that opens investigation for that event
+- **Maintenance integration**: visualization of maintenance periods and their correlation with incidents (see [Maintenance integration](#maintenance-integration) below)
+
+---
+
+## Maintenance integration
+
+The module displays Zabbix maintenances in the investigation views to help correlate incidents with planned maintenance windows.
+
+### Where maintenances appear
+
+- **Heatmap (day × hour)**: Cells that had incidents during a maintenance period show a wrench icon (🔧). The legend "Icon = incident during maintenance" explains this.
+- **Last 12 months**: Each month has an orange bar below the incident bar when maintenances occurred in that month. The number inside the bar indicates how many maintenances. **Click** the orange bar to open a tooltip (Zabbix native style) with the list of maintenances and their date ranges.
+- **Daily distribution (drilldown)**: When you click a month, each day shows segments. Orange segments indicate days with maintenance; the number shows how many maintenances that day. **Click** a segment to see details in a tooltip.
+
+### How it works
+
+- Maintenances are fetched for the host and host groups of the incident, for the last 12 months.
+- Recurring timeperiods (daily, weekly, monthly) are expanded into concrete segments.
+- Legends remain visible even when there are no maintenances in the current view.
+
+### Permissions
+
+- **Configuration → Maintenance** read access is required for maintenance data to be shown.
 
 ---
 
 ## Requirements
 
-- Zabbix 7.0.x (created and tested on 7.0.x; may work on higher versions)
+- Zabbix 7.0.x and 7.4.x (tested on both versions)
 - PHP 8.0+
 - Zabbix with Services and SLA configured (optional, for SLA impact panel)
 

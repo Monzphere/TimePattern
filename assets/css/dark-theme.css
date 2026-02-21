@@ -265,6 +265,55 @@
 	background: rgba(255, 255, 255, 0.05);
 }
 
+[theme="dark-theme"] .mnz-month-maint {
+	color: #f39c12;
+}
+
+[theme="dark-theme"] .mnz-heatmap-maint-icon {
+	color: #f39c12;
+}
+
+[theme="dark-theme"] .mnz-heatmap-legend-maint-sample {
+	color: #f39c12;
+}
+
+[theme="dark-theme"] .mnz-heatmap-legend-maint-label {
+	color: #9ca3af;
+}
+
+[theme="dark-theme"] .mnz-month-maint-badge {
+	color: #f39c12;
+	background: rgba(243, 156, 18, 0.2);
+}
+
+[theme="dark-theme"] .mnz-maint-day {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+[theme="dark-theme"] .mnz-month-maint-bar {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+[theme="dark-theme"] .mnz-month-maint-bar.mnz-maint-day-active {
+	background: rgba(243, 156, 18, 0.5);
+}
+
+[theme="dark-theme"] .mnz-maint-day-active {
+	background: rgba(243, 156, 18, 0.45);
+}
+
+[theme="dark-theme"] .mnz-drilldown-maint-day.mnz-maint-day-active {
+	background: rgba(243, 156, 18, 0.5);
+}
+
+[theme="dark-theme"] .mnz-drilldown-maint-legend {
+	color: #9ca3af;
+}
+
+[theme="dark-theme"] .mnz-drilldown-maint-day {
+	background: rgba(255, 255, 255, 0.08);
+}
+
 [theme="dark-theme"] .mnz-investigation-bar-label,
 [theme="dark-theme"] .mnz-investigation-monthly-label {
 	color: #9ca3af;

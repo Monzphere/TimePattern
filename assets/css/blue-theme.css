@@ -120,8 +120,9 @@
 
 .mnz-heatmap-legend {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px;
+	gap: 8px 16px;
 	margin-top: 10px;
 	font-size: 11px;
 	font-weight: 600;
@@ -140,10 +141,62 @@
 	flex-shrink: 0;
 }
 
+.mnz-heatmap-cell {
+	position: relative;
+}
+
+.mnz-heatmap-cell-val {
+	z-index: 1;
+}
+
+.mnz-heatmap-maint-icon {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	font-size: 10px;
+	color: #e67e22;
+	opacity: 0.95;
+	line-height: 1;
+}
+
+.mnz-heatmap-legend-maint-sample {
+	width: auto;
+	height: auto;
+	border: none;
+	font-size: 12px;
+	color: #e67e22;
+}
+
+.mnz-heatmap-legend-maint-sample.zi:before,
+.mnz-heatmap-legend-maint-sample.zi-wrench-alt-small:before {
+	margin: 0;
+}
+
+.mnz-heatmap-legend-maint {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 11px;
+	color: #666;
+}
+
+.mnz-heatmap-legend-maint-sample.zi {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	flex-shrink: 0;
+}
+
+.mnz-heatmap-legend-maint-label {
+	font-style: italic;
+}
+
 .mnz-heatmap-sla-row {
 	display: grid;
-	grid-template-columns: 1fr minmax(240px, 320px);
-	gap: 20px;
+	grid-template-columns: auto minmax(210px, 320px);
+	gap: 12px;
 	margin-top: 12px;
 	align-items: start;
 	overflow: visible;
@@ -692,6 +745,115 @@
 	display: block;
 }
 
+.mnz-month-maint {
+	display: inline-block;
+	margin-left: 2px;
+	vertical-align: middle;
+	font-size: 10px;
+	color: #e67e22;
+	cursor: help;
+}
+
+.mnz-month-maint-badge {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 1px 5px;
+	font-size: 9px;
+	font-weight: 600;
+	color: #e67e22;
+	background: rgba(230, 126, 34, 0.15);
+	border-radius: 4px;
+	cursor: help;
+}
+
+.mnz-month-maint-indicator {
+	display: flex;
+	height: 12px;
+	margin-top: 8px;
+	width: 100%;
+	max-width: 40px;
+	align-self: center;
+}
+
+.mnz-month-maint-bar {
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.08);
+	border-radius: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 9px;
+	font-weight: bold;
+	line-height: 1;
+	color: #fff;
+	text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.mnz-month-maint-bar.mnz-maint-day-active {
+	background: rgba(230, 126, 34, 0.65);
+	cursor: pointer;
+}
+
+.mnz-maint-clickable {
+	cursor: pointer;
+}
+
+#mnz-maint-tooltip-popover {
+	display: none;
+	position: fixed;
+	z-index: 10000;
+	min-width: 180px;
+	max-width: 320px;
+}
+
+#mnz-maint-tooltip-popover.mnz-maint-tooltip-visible {
+	display: block;
+}
+
+.mnz-drilldown-maint-strip {
+	display: flex;
+	height: 12px;
+	margin-top: 8px;
+	gap: 2px;
+	width: 100%;
+	align-self: stretch;
+	min-height: 12px;
+}
+
+.mnz-drilldown-maint-day {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.08);
+	border-radius: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 8px;
+	font-weight: bold;
+	line-height: 1;
+	color: #fff;
+	text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+	overflow: hidden;
+}
+
+.mnz-drilldown-maint-day.mnz-maint-day-active {
+	background: rgba(230, 126, 34, 0.65);
+	cursor: pointer;
+}
+
+.mnz-drilldown-maint-legend {
+	font-size: 10px;
+	color: #666;
+	margin-top: 6px;
+	font-style: italic;
+}
+
+.mnz-drilldown-daily-bars {
+	margin-bottom: 4px;
+}
+
 .mnz-recommendations-list {
 	margin: 0;
 	padding-left: 20px;
@@ -983,6 +1145,21 @@
 	align-items: center;
 	flex: 1;
 	min-width: 0;
+}
+
+.mnz-monthly-item-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: center;
+	gap: 2px 6px;
+	line-height: 1.3;
+	font-size: 11px;
+	font-weight: bold;
+}
+
+.mnz-monthly-value {
+	font-weight: bold;
 }
 
 .mnz-investigation-monthly-bar {
