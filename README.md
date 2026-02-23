@@ -1,4 +1,8 @@
-# Zabbix Incident Investigation Module ![views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation) ![Clones](https://img.shields.io/badge/dynamic/json?url=https://api.github.com/repos/Monzphere/IncidentInvestigation/traffic/clones&query=clones&label=Clones)
+# Zabbix Incident Investigation Module !
+[views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation) 
+![Stars](https://img.shields.io/github/stars/Monzphere/IncidentInvestigation?style=social)
+![Forks](https://img.shields.io/github/forks/Monzphere/IncidentInvestigation?style=social)
+![Issues](https://img.shields.io/github/issues/Monzphere/IncidentInvestigation)
 
 <img width="1455" height="746" alt="image" src="https://github.com/user-attachments/assets/67e25ae3-e580-4939-af3a-0fcc35f9fe45" />
 <img width="1451" height="752" alt="image" src="https://github.com/user-attachments/assets/87a2a4cd-f6f6-4b82-8545-ddf32c1812c7" />
