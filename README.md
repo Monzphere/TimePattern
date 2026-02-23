@@ -66,7 +66,7 @@ If the module does not work on your Zabbix version, please open an [issue]([http
 ### 1. Download the module
 
 ```bash
-git clone https://github.com/Monzphere/TimePattern.git
+git clone https://github.com/Monzphere/IncidentInvestigation.git
 # or download the ZIP and extract
 ```
 
@@ -75,14 +75,14 @@ git clone https://github.com/Monzphere/TimePattern.git
 Copy the module folder to Zabbix's modules directory:
 
 ```bash
-cp -r TimePattern /usr/share/zabbix/modules/TimePattern
+cp -r TimePattern /usr/share/zabbix/modules/IncidentInvestigation
 ```
 
 If the `modules` directory does not exist, create it:
 
 ```bash
 mkdir -p /usr/share/zabbix/modules
-cp -r TimePattern /usr/share/zabbix/modules/TimePattern
+cp -r TimePattern /usr/share/zabbix/modules/IncidentInvestigation
 ```
 
 ### 3. Enable the module in Zabbix
@@ -106,7 +106,7 @@ The module does not add a menu item. Access is through:
 ## Module structure
 
 ```
-TimePattern/
+IncidentInvestigation/
 ├── Module.php
 ├── manifest.json
 ├── actions/
