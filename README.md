@@ -1,5 +1,5 @@
-# Zabbix Incident Investigation Module !
-[views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation) 
+# Zabbix Incident Investigation Module
+![views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation) 
 ![Stars](https://img.shields.io/github/stars/Monzphere/IncidentInvestigation?style=social)
 ![Forks](https://img.shields.io/github/forks/Monzphere/IncidentInvestigation?style=social)
 ![Issues](https://img.shields.io/github/issues/Monzphere/IncidentInvestigation)
