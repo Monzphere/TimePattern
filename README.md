@@ -1,12 +1,8 @@
-# Zabbix Incident Investigation Module
+# Zabbix Incident Investigation Module ![views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation)
 
 <img width="1455" height="746" alt="image" src="https://github.com/user-attachments/assets/67e25ae3-e580-4939-af3a-0fcc35f9fe45" />
 <img width="1451" height="752" alt="image" src="https://github.com/user-attachments/assets/87a2a4cd-f6f6-4b82-8545-ddf32c1812c7" />
 <img width="1439" height="748" alt="image" src="https://github.com/user-attachments/assets/fd0222e2-7236-4600-95e1-540f8a26e585" />
-
-
-
-![views](https://komarev.com/ghpvc/?username=matheusandrade&repo=https://github.com/Monzphere/IncidentInvestigation)
 
 A Zabbix module providing detailed incident investigation with temporal patterns, occurrence heatmaps, SLA impact, and action timeline.
 
